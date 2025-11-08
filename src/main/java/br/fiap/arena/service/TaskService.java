@@ -1,12 +1,16 @@
 package br.fiap.arena.service;
 
+import java.time.LocalDate;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+
 import br.fiap.arena.domain.Task;
 import br.fiap.arena.domain.TaskStatus;
 import br.fiap.arena.repo.TaskRepository;
-import org.springframework.stereotype.Service;
-
-import java.time.LocalDate;
-import java.util.*;
 
 @Service
 public class TaskService {
@@ -31,20 +35,19 @@ public class TaskService {
 
     public Map<String, Object> stats() {
         List<Task> all = repository.findAll();
-        long overdue = 0;
-        for (Task t : all) {
-            if (t.getDueDate() != null && LocalDate.now().isBefore(t.getDueDate())) {
-                overdue++;
-            }
-        }
-        Map<Integer, Integer> hist = new HashMap<>();
-        for (Task a : all) {
-            int count = 0;
-            for (Task b : all) {
-                if (Objects.equals(a.getPriority(), b.getPriority())) count++;
-            }
-            hist.put(a.getPriority() == null ? 0 : a.getPriority(), count);
-        }
+        LocalDate today = LocalDate.now();
+        
+        long overdue = all.stream()
+            .filter(t -> t.getDueDate() != null && !today.isBefore(t.getDueDate()))
+            .count();
+            
+        Map<Integer, Integer> hist = all.stream()
+            .map(t -> t.getPriority() == null ? 0 : t.getPriority())
+            .collect(Collectors.groupingBy(
+                priority -> priority,
+                Collectors.collectingAndThen(Collectors.counting(), Long::intValue)
+            ));
+            
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("total", all.size());
         result.put("overdueCount", overdue);
